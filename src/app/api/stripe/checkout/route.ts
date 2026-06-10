@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { stripe, STRIPE_PRICE_ID } from "@/lib/stripe";
+import { getStripe, isStripeConfigured, STRIPE_PRICE_ID } from "@/lib/stripe";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -8,15 +8,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
-  if (!STRIPE_PRICE_ID) {
+  if (!isStripeConfigured() || !STRIPE_PRICE_ID) {
     return NextResponse.json(
-      { message: "Stripe price ID not configured" },
-      { status: 500 }
+      { message: "Stripe is not configured" },
+      { status: 503 }
     );
   }
 
   try {
-    const checkoutSession = await stripe.checkout.sessions.create({
+    const checkoutSession = await getStripe().checkout.sessions.create({
       mode: "subscription",
       line_items: [
         {

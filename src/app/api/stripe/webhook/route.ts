@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { stripe, STRIPE_WEBHOOK_SECRET } from "@/lib/stripe";
+import { getStripe, isStripeConfigured, STRIPE_WEBHOOK_SECRET } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
 import Stripe from "stripe";
 
 export async function POST(req: NextRequest) {
-  if (!STRIPE_WEBHOOK_SECRET) {
+  if (!isStripeConfigured() || !STRIPE_WEBHOOK_SECRET) {
     return NextResponse.json(
-      { message: "Webhook secret not configured" },
-      { status: 500 }
+      { message: "Stripe webhook is not configured" },
+      { status: 503 }
     );
   }
 
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
 
   let event: Stripe.Event;
   try {
-    event = stripe.webhooks.constructEvent(
+    event = getStripe().webhooks.constructEvent(
       payload,
       signature,
       STRIPE_WEBHOOK_SECRET
