@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -33,7 +33,18 @@ interface UserSettings {
   subscriptionExpiry: string | null;
 }
 
-export default function SettingsPage() {
+function SettingsLoading() {
+  return (
+    <div className="min-h-screen flex flex-col">
+      <Navbar />
+      <main className="flex-1 container py-12 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </main>
+    </div>
+  );
+}
+
+function SettingsPageContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -103,14 +114,7 @@ export default function SettingsPage() {
   }
 
   if (status === "loading" || loading) {
-    return (
-      <div className="min-h-screen flex flex-col">
-        <Navbar />
-        <main className="flex-1 container py-12 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </main>
-      </div>
-    );
+    return <SettingsLoading />;
   }
 
   if (!settings) return null;
@@ -357,5 +361,13 @@ export default function SettingsPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense fallback={<SettingsLoading />}>
+      <SettingsPageContent />
+    </Suspense>
   );
 }
