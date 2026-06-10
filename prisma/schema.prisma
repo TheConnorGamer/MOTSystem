@@ -1,0 +1,196 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model User {
+  id                    String         @id @default(cuid())
+  name                  String?
+  email                 String         @unique
+  emailVerified         DateTime?      @map("email_verified")
+  image                 String?
+  password              String?        // For credentials provider
+  role                  String         @default("USER")
+  emailRemindersEnabled Boolean        @default(true) @map("email_reminders_enabled")
+  smsRemindersEnabled   Boolean        @default(false) @map("sms_reminders_enabled")
+  phoneNumber           String?        @map("phone_number")
+  phoneVerified         Boolean        @default(false) @map("phone_verified")
+  subscriptionTier      String         @default("FREE") @map("subscription_tier")
+  subscriptionExpiry    DateTime?      @map("subscription_expiry")
+  stripeCustomerId      String?        @map("stripe_customer_id")
+  stripeSubscriptionId  String?        @map("stripe_subscription_id")
+  createdAt             DateTime       @default(now()) @map("created_at")
+  updatedAt             DateTime       @updatedAt @map("updated_at")
+
+  accounts      Account[]
+  sessions      Session[]
+  vehicles      Vehicle[]
+  reminders     Reminder[]
+  activityLogs  ActivityLog[]
+  documents     Document[]
+  serviceHistory ServiceHistory[]
+
+  @@map("users")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verificationtokens")
+}
+
+model Vehicle {
+  id              String          @id @default(cuid())
+  userId          String          @map("user_id")
+  registration    String          // VRM - e.g. "AB12 CDE"
+  make            String?
+  model           String?
+  colour          String?
+  fuelType        String?         @map("fuel_type")
+  engineSize      Int?            @map("engine_size")
+  yearOfManufacture Int?          @map("year_of_manufacture")
+  mileage         Int?
+  motDueDate      DateTime?       @map("mot_due_date")
+  taxDueDate      DateTime?       @map("tax_due_date")
+  lastMotDate     DateTime?       @map("last_mot_date")
+  lastServiceDate DateTime?       @map("last_service_date")
+  nextServiceDate DateTime?       @map("next_service_date")
+  serviceIntervalMiles Int?       @map("service_interval_miles")
+  serviceIntervalMonths Int?       @map("service_interval_months")
+  motStatus       String?         @map("mot_status")
+  taxStatus       String?         @map("tax_status")
+  motHistoryJson  String?         @map("mot_history_json")
+  insuranceDueDate DateTime?      @map("insurance_due_date")
+  notes           String?
+  cachedAt        DateTime?       @map("cached_at")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reminders   Reminder[]
+  documents   Document[]
+  serviceHistory ServiceHistory[]
+
+  @@unique([userId, registration])
+  @@index([registration])
+  @@map("vehicles")
+}
+
+model Reminder {
+  id            String          @id @default(cuid())
+  userId        String          @map("user_id")
+  vehicleId     String          @map("vehicle_id")
+  type          String
+  dueDate       DateTime        @map("due_date")
+  daysBefore    Int             @map("days_before")
+  sentAt        DateTime?       @map("sent_at")
+  status        String          @default("PENDING")
+  createdAt     DateTime        @default(now()) @map("created_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([status, dueDate])
+  @@map("reminders")
+}
+
+model ActivityLog {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  action      String   // e.g. "VEHICLE_LOOKUP", "PDF_DOWNLOAD", "REMINDER_SENT"
+  details     String?
+  ipAddress   String?  @map("ip_address")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+  @@map("activity_logs")
+}
+
+model ServiceInterval {
+  id          String   @id @default(cuid())
+  make        String
+  model       String
+  variant     String?
+  intervalMiles  Int   @map("interval_miles")
+  intervalMonths Int   @map("interval_months")
+  engineType  String?  @map("engine_type")
+  yearFrom    Int?     @map("year_from")
+  yearTo      Int?     @map("year_to")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@unique([make, model, variant])
+  @@map("service_intervals")
+}
+
+model Document {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  vehicleId   String?  @map("vehicle_id")
+  title       String
+  fileUrl     String   @map("file_url")
+  fileType    String   @map("file_type")
+  fileSize    Int      @map("file_size")
+  category    String   @default("OTHER") // MOT, TAX, INSURANCE, SERVICE, OTHER
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicle Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@map("documents")
+}
+
+model ServiceHistory {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  vehicleId   String   @map("vehicle_id")
+  serviceDate DateTime @map("service_date")
+  mileage     Int?
+  description String
+  garage      String?
+  cost        Float?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@map("service_history")
+}
