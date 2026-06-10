@@ -50,7 +50,7 @@ const worker = new Worker(
         data: {
           userId,
           action: "REMINDER_SENT",
-          details: { reminderId, type, vehicleReg, daysRemaining },
+          details: JSON.stringify({ reminderId, type, vehicleReg, daysRemaining }),
         },
       });
 
