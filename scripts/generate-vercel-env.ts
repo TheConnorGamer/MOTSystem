@@ -67,7 +67,7 @@ const vars: Record<string, string> = {
   EMAIL_FROM: local.EMAIL_FROM || "noreply@vehicleguard.uk",
   TWILIO_ACCOUNT_SID: local.TWILIO_ACCOUNT_SID || "",
   TWILIO_AUTH_TOKEN: local.TWILIO_AUTH_TOKEN || "",
-  TWILIO_PHONE_NUMBER: local.TWILIO_PHONE_NUMBER || "",
+  TWILIO_PHONE_NUMBER: local.TWILIO_PHONE_NUMBER || "+447576552792",
 
   // --- Stripe (optional) ---
   STRIPE_SECRET_KEY: local.STRIPE_SECRET_KEY || "",
@@ -77,17 +77,12 @@ const vars: Record<string, string> = {
   // --- Admin ---
   ADMIN_EMAIL: local.ADMIN_EMAIL || "admin@vehicleguard.uk",
 
-  // Redis optional on Vercel — DVSA still works without it (no cache)
-  REDIS_URL: "",
 };
 
-const lines = [
-  "# Import into Vercel: Project → Settings → Environment Variables → paste all lines below",
-  "# Fix DATABASE_URL and DIRECT_URL from Neon before importing!",
-  "",
-  ...Object.entries(vars).map(([k, v]) => `${k}=${v}`),
-  "",
-];
+// Vercel rejects empty values — only export vars that have a value
+const lines = Object.entries(vars)
+  .filter(([, v]) => v.trim() !== "")
+  .map(([k, v]) => `${k}=${v}`);
 
 fs.writeFileSync(outPath, lines.join("\n"), "utf8");
 
