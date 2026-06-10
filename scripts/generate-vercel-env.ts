@@ -74,6 +74,9 @@ const vars: Record<string, string> = {
   STRIPE_WEBHOOK_SECRET: local.STRIPE_WEBHOOK_SECRET || "",
   STRIPE_PRICE_ID: local.STRIPE_PRICE_ID || "",
 
+  // --- Cron (required for automatic daily reminders on Vercel) ---
+  CRON_SECRET: crypto.randomBytes(32).toString("hex"),
+
   // --- Admin ---
   ADMIN_EMAIL: local.ADMIN_EMAIL || "admin@vehicleguard.uk",
 

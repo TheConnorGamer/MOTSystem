@@ -66,8 +66,9 @@ export async function PATCH(req: NextRequest) {
     if (data.emailRemindersEnabled !== undefined) updateData.emailRemindersEnabled = data.emailRemindersEnabled;
     if (data.smsRemindersEnabled !== undefined) updateData.smsRemindersEnabled = data.smsRemindersEnabled;
     if (data.phoneNumber !== undefined) {
-      updateData.phoneNumber = data.phoneNumber;
-      updateData.phoneVerified = false; // Reset verification on number change
+      const normalized = data.phoneNumber?.trim() || null;
+      updateData.phoneNumber = normalized;
+      updateData.phoneVerified = Boolean(normalized);
     }
 
     const updated = await prisma.user.update({

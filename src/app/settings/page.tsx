@@ -269,11 +269,9 @@ function SettingsPageContent() {
                       Save
                     </Button>
                   </div>
-                  {settings.phoneVerified ? (
-                    <p className="text-xs text-green-600">Number verified</p>
-                  ) : settings.phoneNumber ? (
-                    <p className="text-xs text-yellow-600">
-                      Number saved but not verified. Verification coming soon.
+                  {settings.phoneNumber ? (
+                    <p className="text-xs text-green-600">
+                      SMS reminders will be sent to this number
                     </p>
                   ) : null}
                 </div>

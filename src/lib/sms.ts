@@ -18,8 +18,7 @@ export async function sendSms(to: string, body: string): Promise<void> {
     return;
   }
 
-  // Normalize UK number
-  let normalizedTo = to.trim();
+  let normalizedTo = to.replace(/\s/g, "").trim();
   if (normalizedTo.startsWith("0")) {
     normalizedTo = "+44" + normalizedTo.slice(1);
   }
