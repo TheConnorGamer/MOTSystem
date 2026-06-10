@@ -10,10 +10,12 @@ out/
 # Misc
 .DS_Store
 *.pem
+tsconfig.tsbuildinfo
 
 # Environment variables
 .env
 .env.vercel
+.env.vercel.minimal
 .env.local
 .env.development.local
 .env.test.local

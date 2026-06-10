@@ -64,7 +64,7 @@ export async function processDueReminders(
       }
     }
 
-    if (user.smsRemindersEnabled && user.phoneNumber) {
+    if (user.smsRemindersEnabled && user.phoneNumber && user.phoneVerified) {
       try {
         await sendSms(
           user.phoneNumber,

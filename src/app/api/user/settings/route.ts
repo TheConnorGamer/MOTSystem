@@ -68,7 +68,7 @@ export async function PATCH(req: NextRequest) {
     if (data.phoneNumber !== undefined) {
       const normalized = data.phoneNumber?.trim() || null;
       updateData.phoneNumber = normalized;
-      updateData.phoneVerified = Boolean(normalized);
+      updateData.phoneVerified = false;
     }
 
     const updated = await prisma.user.update({

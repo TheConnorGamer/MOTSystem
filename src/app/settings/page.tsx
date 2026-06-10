@@ -53,6 +53,9 @@ function SettingsPageContent() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [checkingOut, setCheckingOut] = useState(false);
+  const [verifyCode, setVerifyCode] = useState("");
+  const [sendingCode, setSendingCode] = useState(false);
+  const [verifying, setVerifying] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -87,6 +90,62 @@ function SettingsPageContent() {
       toast({ title: "Failed to load settings", variant: "destructive" });
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function sendVerificationCode() {
+    setSendingCode(true);
+    try {
+      const res = await fetch("/api/user/phone/send-code", { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        toast({
+          title: "Code sent",
+          description: "Check your phone for a 6-digit verification code.",
+        });
+      } else {
+        toast({ title: data.message || "Failed to send code", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Failed to send code", variant: "destructive" });
+    } finally {
+      setSendingCode(false);
+    }
+  }
+
+  async function savePhoneNumber() {
+    if (!settings?.phoneNumber?.trim()) {
+      toast({ title: "Enter a mobile number", variant: "destructive" });
+      return;
+    }
+    await saveChanges({ phoneNumber: settings.phoneNumber.trim() });
+    await sendVerificationCode();
+  }
+
+  async function verifyPhoneNumber() {
+    if (verifyCode.length !== 6) {
+      toast({ title: "Enter the 6-digit code", variant: "destructive" });
+      return;
+    }
+    setVerifying(true);
+    try {
+      const res = await fetch("/api/user/phone/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: verifyCode }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSettings((s) => (s ? { ...s, phoneVerified: true } : s));
+        setVerifyCode("");
+        toast({ title: "Phone verified", description: "SMS reminders are now active." });
+      } else {
+        toast({ title: data.message || "Verification failed", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Verification failed", variant: "destructive" });
+    } finally {
+      setVerifying(false);
     }
   }
 
@@ -249,31 +308,81 @@ function SettingsPageContent() {
               </div>
 
               {settings.smsRemindersEnabled && (
-                <div className="space-y-2 pl-8">
-                  <Label htmlFor="phone">Mobile Number</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="phone"
-                      type="tel"
-                      placeholder="+44 7123 456789"
-                      value={settings.phoneNumber || ""}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                        setSettings((s) => (s ? { ...s, phoneNumber: e.target.value } : s))
-                      }
-                    />
-                    <Button
-                      size="sm"
-                      onClick={() => saveChanges({ phoneNumber: settings.phoneNumber })}
-                      disabled={saving}
-                    >
-                      Save
-                    </Button>
+                <div className="space-y-4 pl-8">
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Mobile Number</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="phone"
+                        type="tel"
+                        placeholder="+44 7123 456789"
+                        value={settings.phoneNumber || ""}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setSettings((s) =>
+                            s ? { ...s, phoneNumber: e.target.value, phoneVerified: false } : s
+                          )
+                        }
+                      />
+                      <Button
+                        size="sm"
+                        onClick={savePhoneNumber}
+                        disabled={saving || sendingCode}
+                      >
+                        {sendingCode ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          "Save & Send Code"
+                        )}
+                      </Button>
+                    </div>
+                    {settings.phoneVerified ? (
+                      <p className="text-xs text-green-600">
+                        Number verified — SMS reminders active
+                      </p>
+                    ) : settings.phoneNumber ? (
+                      <p className="text-xs text-yellow-600">
+                        Save your number and enter the code we text you to activate SMS
+                      </p>
+                    ) : null}
                   </div>
-                  {settings.phoneNumber ? (
-                    <p className="text-xs text-green-600">
-                      SMS reminders will be sent to this number
-                    </p>
-                  ) : null}
+
+                  {settings.phoneNumber && !settings.phoneVerified && (
+                    <div className="space-y-2">
+                      <Label htmlFor="verify-code">Verification code</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="verify-code"
+                          inputMode="numeric"
+                          maxLength={6}
+                          placeholder="123456"
+                          value={verifyCode}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                            setVerifyCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+                          }
+                        />
+                        <Button
+                          size="sm"
+                          onClick={verifyPhoneNumber}
+                          disabled={verifying || verifyCode.length !== 6}
+                        >
+                          {verifying ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            "Verify"
+                          )}
+                        </Button>
+                      </div>
+                      <Button
+                        variant="link"
+                        size="sm"
+                        className="h-auto p-0 text-xs"
+                        onClick={sendVerificationCode}
+                        disabled={sendingCode}
+                      >
+                        Resend code
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
