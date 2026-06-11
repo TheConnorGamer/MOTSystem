@@ -9,7 +9,18 @@ export default auth((req) => {
   const isLoggedIn = !!req.auth;
   const isAdmin = req.auth?.user?.role === "ADMIN";
 
-  const publicRoutes = ["/", "/auth/signin", "/auth/signup", "/auth/error", "/api/auth"];
+  const publicRoutes = [
+    "/",
+    "/auth/signin",
+    "/auth/signup",
+    "/auth/error",
+    "/api/auth",
+    "/lookup",
+    "/privacy",
+    "/terms",
+    "/cookies",
+    "/contact",
+  ];
   const apiAuthPrefix = "/api/auth";
   const adminRoutes = ["/admin"];
 

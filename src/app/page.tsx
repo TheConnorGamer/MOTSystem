@@ -1,4 +1,5 @@
 import { Navbar } from "@/components/navbar";
+import { SiteFooter } from "@/components/site-footer";
 import { VehicleLookupForm } from "@/components/vehicle-lookup-form";
 import { Shield, Bell, FileText, Gauge } from "lucide-react";
 
@@ -83,18 +84,7 @@ export default function HomePage() {
         </section>
       </main>
 
-      <footer className="border-t bg-background py-8">
-        <div className="container flex flex-col items-center justify-between gap-4 md:flex-row">
-          <p className="text-sm text-muted-foreground">
-            &copy; {new Date().getFullYear()} VehicleGuard UK. All rights reserved.
-          </p>
-          <div className="flex gap-6 text-sm text-muted-foreground">
-            <span>Privacy Policy</span>
-            <span>Terms of Service</span>
-            <span>Cookie Policy</span>
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }
