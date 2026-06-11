@@ -1,366 +1,202 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import {
-  Car,
-  Calendar,
-  Gauge,
-  AlertTriangle,
-  Plus,
-  Trash2,
-  Download,
-  Wrench,
-  ChevronRight,
-  Bell,
-  Settings,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Navbar } from "@/components/navbar";
+import { AlertTriangle, Car, Plus, CalendarClock, Warehouse } from "lucide-react";
+import { AppShell } from "@/components/app-shell";
+import { GarageToolbar } from "@/components/garage-toolbar";
+import { GarageVehicleCard } from "@/components/garage-vehicle-card";
 import { VehicleLookupForm } from "@/components/vehicle-lookup-form";
-import { EditVehicleDialog } from "@/components/edit-vehicle-dialog";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { formatDate, daysUntil, getStatusBadgeClass } from "@/lib/utils";
+  type GarageFilter,
+  type GarageSort,
+  type GarageVehicle,
+  filterVehicles,
+  needsAttention,
+  sortVehicles,
+  getSoonestDays,
+} from "@/lib/garage";
 import { useToast } from "@/hooks/use-toast";
 
-interface DashboardVehicle {
-  id: string;
-  registration: string;
-  make: string | null;
-  model: string | null;
-  colour: string | null;
-  motDueDate: string | null;
-  taxDueDate: string | null;
-  lastMotDate: string | null;
-  lastServiceDate: string | null;
-  nextServiceDate: string | null;
-  serviceIntervalMiles: number | null;
-  serviceIntervalMonths: number | null;
-  motStatus: string;
-  taxStatus: string;
-  insuranceDueDate: string | null;
-  notes: string | null;
-  mileage: number | null;
-  motHistoryJson: string | null;
-}
-
 export default function DashboardPage() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const router = useRouter();
   const { toast } = useToast();
-  const [vehicles, setVehicles] = useState<DashboardVehicle[]>([]);
+  const [vehicles, setVehicles] = useState<GarageVehicle[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<GarageFilter>("all");
+  const [sort, setSort] = useState<GarageSort>("urgency");
 
   useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/auth/signin");
-    }
+    if (status === "unauthenticated") router.push("/auth/signin");
   }, [status, router]);
 
   useEffect(() => {
-    if (status === "authenticated") {
-      fetchVehicles();
-    }
+    if (status === "authenticated") fetchVehicles();
   }, [status]);
 
   async function fetchVehicles() {
     try {
       const res = await fetch("/api/vehicles");
-      if (res.ok) {
-        const data = await res.json();
-        setVehicles(data);
-      }
+      if (res.ok) setVehicles(await res.json());
     } catch {
-      toast({ title: "Failed to load vehicles", variant: "destructive" });
+      toast({ title: "Failed to load garage", variant: "destructive" });
     } finally {
       setLoading(false);
     }
   }
 
-  async function deleteVehicle(id: string) {
-    if (!confirm("Are you sure you want to remove this vehicle?")) return;
+  const filtered = useMemo(
+    () => sortVehicles(filterVehicles(vehicles, filter, search), sort),
+    [vehicles, filter, search, sort]
+  );
 
-    try {
-      const res = await fetch(`/api/vehicles/${id}`, { method: "DELETE" });
-      if (res.ok) {
-        setVehicles((prev) => prev.filter((v) => v.id !== id));
-        toast({ title: "Vehicle removed" });
-      } else {
-        toast({ title: "Failed to remove vehicle", variant: "destructive" });
-      }
-    } catch {
-      toast({ title: "Something went wrong", variant: "destructive" });
-    }
-  }
+  const attentionCount = vehicles.filter(needsAttention).length;
+  const soonest = vehicles
+    .map((v) => getSoonestDays(v))
+    .filter((d): d is number => d !== null);
+  const nextDueDays = soonest.length ? Math.min(...soonest) : null;
 
   if (status === "loading" || loading) {
     return (
-      <div className="min-h-screen flex flex-col">
-        <Navbar />
-        <main className="flex-1 container py-12">
-          <div className="space-y-4">
-            <div className="h-8 w-48 rounded bg-muted animate-pulse" />
-            <div className="grid gap-4 md:grid-cols-3">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="h-40 rounded-lg bg-muted animate-pulse" />
-              ))}
-            </div>
-          </div>
-        </main>
-      </div>
+      <AppShell>
+        <div className="mx-auto max-w-2xl space-y-6">
+          <Skeleton className="h-32 w-full rounded-3xl" />
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-36 w-full rounded-2xl" />
+        </div>
+      </AppShell>
     );
   }
 
-  const urgentVehicles = vehicles.filter((v) => {
-    const motDays = daysUntil(v.motDueDate);
-    const taxDays = daysUntil(v.taxDueDate);
-    const serviceDays = daysUntil(v.nextServiceDate);
-    return (
-      (motDays !== null && motDays <= 14) ||
-      (taxDays !== null && taxDays <= 14) ||
-      (serviceDays !== null && serviceDays <= 14)
-    );
-  });
-
   return (
-    <div className="min-h-screen flex flex-col">
-      <Navbar />
-      <main className="flex-1 container py-8">
-        <div className="mx-auto max-w-6xl space-y-8">
-          {/* Header */}
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <AppShell>
+      <div className="mx-auto max-w-2xl space-y-5">
+        {/* Header */}
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-gradient-to-br from-[#1d70b8] to-[#003078] p-2.5 text-white shadow-md">
+              <Warehouse className="h-6 w-6" />
+            </div>
             <div>
-              <h1 className="text-3xl font-bold">My Garage</h1>
-              <p className="text-muted-foreground">
-                Welcome back, {session?.user?.name || session?.user?.email}
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <Link href="/settings">
-                <Button variant="outline" size="sm">
-                  <Settings className="mr-2 h-4 w-4" />
-                  Settings
-                </Button>
-              </Link>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={async () => {
-                  try {
-                    const res = await fetch("/api/reminders/send", { method: "POST" });
-                    const data = await res.json();
-                    if (data.sent > 0) {
-                      toast({ title: `${data.sent} reminder(s) sent!` });
-                    } else {
-                      toast({ title: "No reminders due right now" });
-                    }
-                  } catch {
-                    toast({ title: "Failed to check reminders", variant: "destructive" });
-                  }
-                }}
-              >
-                <Bell className="mr-2 h-4 w-4" />
-                Check Reminders
-              </Button>
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button size="sm">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Vehicle
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Lookup a Vehicle</DialogTitle>
-                  </DialogHeader>
-                  <VehicleLookupForm />
-                </DialogContent>
-              </Dialog>
+              <h1 className="text-2xl font-bold tracking-tight">My Garage</h1>
+              <p className="text-sm text-muted-foreground">Your vehicles &amp; deadlines</p>
             </div>
           </div>
-
-          {/* Alerts */}
-          {urgentVehicles.length > 0 && (
-            <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-800 dark:bg-yellow-900/20">
-              <div className="flex items-center gap-2 text-yellow-800 dark:text-yellow-300">
-                <AlertTriangle className="h-5 w-5" />
-                <span className="font-semibold">
-                  {urgentVehicles.length} vehicle{urgentVehicles.length !== 1 ? "s" : ""} need attention
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* Vehicle Grid */}
-          {vehicles.length === 0 ? (
-            <div className="rounded-xl border bg-card p-12 text-center">
-              <Car className="mx-auto h-12 w-12 text-muted-foreground" />
-              <h3 className="mt-4 text-lg font-semibold">No vehicles yet</h3>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Search for a vehicle by registration to get started.
-              </p>
-              <div className="mx-auto mt-6 max-w-md">
-                <VehicleLookupForm />
-              </div>
-            </div>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {vehicles.map((vehicle) => (
-                <VehicleCard
-                  key={vehicle.id}
-                  vehicle={vehicle}
-                  onDelete={() => deleteVehicle(vehicle.id)}
-                  onUpdate={fetchVehicles}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      </main>
-    </div>
-  );
-}
-
-function VehicleCard({
-  vehicle,
-  onDelete,
-  onUpdate,
-}: {
-  vehicle: DashboardVehicle;
-  onDelete: () => void;
-  onUpdate: () => void;
-}) {
-  const motDays = daysUntil(vehicle.motDueDate);
-  const taxDays = daysUntil(vehicle.taxDueDate);
-  const serviceDays = daysUntil(vehicle.nextServiceDate);
-  const insuranceDays = daysUntil(vehicle.insuranceDueDate);
-
-  const needsAttention =
-    (motDays !== null && motDays <= 14) ||
-    (taxDays !== null && taxDays <= 14) ||
-    (serviceDays !== null && serviceDays <= 14) ||
-    (insuranceDays !== null && insuranceDays <= 14);
-
-  return (
-    <Card className={needsAttention ? "border-yellow-400 dark:border-yellow-600" : ""}>
-      <CardHeader className="pb-2">
-        <div className="flex items-start justify-between">
-          <div>
-            <CardTitle className="text-xl flex items-center gap-2">
-              <Car className="h-5 w-5 text-gov-blue" />
-              {vehicle.registration}
-              {!vehicle.motHistoryJson && (
-                <Badge variant="outline" className="text-xs font-normal">Manual</Badge>
-              )}
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              {vehicle.make} {vehicle.model}
-            </p>
-          </div>
-          <div className="flex">
-            <EditVehicleDialog vehicle={vehicle} onUpdated={onUpdate} />
-            <Button variant="ghost" size="icon" onClick={onDelete} className="h-8 w-8 text-muted-foreground hover:text-destructive">
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="space-y-2">
-          <StatusRow
-            label="MOT"
-            date={vehicle.motDueDate}
-            icon={<Calendar className="h-4 w-4" />}
-          />
-          <StatusRow
-            label="Tax"
-            date={vehicle.taxDueDate}
-            icon={<Calendar className="h-4 w-4" />}
-          />
-          {vehicle.nextServiceDate && (
-            <StatusRow
-              label="Service"
-              date={vehicle.nextServiceDate}
-              icon={<Wrench className="h-4 w-4" />}
-            />
-          )}
-          {vehicle.insuranceDueDate && (
-            <StatusRow
-              label="Insurance"
-              date={vehicle.insuranceDueDate}
-              icon={<Gauge className="h-4 w-4" />}
-            />
-          )}
-        </div>
-
-        <div className="flex gap-2 pt-2">
-          <Link href={`/lookup/${vehicle.registration}`} className="flex-1">
-            <Button variant="outline" size="sm" className="w-full">
-              Details <ChevronRight className="ml-1 h-3 w-3" />
+          <Link href="/add" className="hidden sm:block">
+            <Button className="rounded-full bg-gradient-to-r from-[#1d70b8] to-[#00703c] shadow-md">
+              <Plus className="mr-2 h-4 w-4" />
+              Add
             </Button>
           </Link>
-          <Button variant="outline" size="sm" className="px-2">
-            <Download className="h-4 w-4" />
-          </Button>
         </div>
-      </CardContent>
-    </Card>
+
+        {vehicles.length === 0 ? (
+          <VehicleLookupForm />
+        ) : (
+          <>
+            <div className="rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-4 py-2.5 text-sm font-medium text-white shadow">
+              Garage updated · {vehicles.length} vehicle{vehicles.length !== 1 ? "s" : ""} saved
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              <StatTile
+                icon={<Car className="h-4 w-4" />}
+                value={vehicles.length}
+                label="Vehicles"
+                color="blue"
+              />
+              <StatTile
+                icon={<AlertTriangle className="h-4 w-4" />}
+                value={attentionCount}
+                label="Attention"
+                color={attentionCount > 0 ? "amber" : "slate"}
+              />
+              <StatTile
+                icon={<CalendarClock className="h-4 w-4" />}
+                value={nextDueDays !== null ? `${nextDueDays}d` : "—"}
+                label="Next due"
+                color="green"
+              />
+            </div>
+
+            {attentionCount > 0 && (
+              <div className="flex items-center gap-2 rounded-xl border border-amber-300 bg-gradient-to-r from-amber-50 to-orange-50 px-4 py-3 text-sm text-amber-900 dark:from-amber-950/30 dark:to-orange-950/20 dark:text-amber-200">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                <span>
+                  <strong>{attentionCount}</strong> vehicle{attentionCount !== 1 ? "s" : ""} need
+                  attention soon
+                </span>
+              </div>
+            )}
+
+            <GarageToolbar
+              search={search}
+              onSearchChange={setSearch}
+              filter={filter}
+              onFilterChange={setFilter}
+              sort={sort}
+              onSortChange={setSort}
+              count={filtered.length}
+            />
+
+            {filtered.length === 0 ? (
+              <p className="py-12 text-center text-muted-foreground">
+                No vehicles match your search or filter.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {filtered.map((v) => (
+                  <GarageVehicleCard key={v.id} vehicle={v} />
+                ))}
+              </div>
+            )}
+
+            <Link href="/add" className="block sm:hidden">
+              <Button className="w-full rounded-full bg-gradient-to-r from-[#1d70b8] to-[#00703c]">
+                <Plus className="mr-2 h-4 w-4" />
+                Add another vehicle
+              </Button>
+            </Link>
+          </>
+        )}
+      </div>
+    </AppShell>
   );
 }
 
-function StatusRow({
-  label,
-  date,
+function StatTile({
   icon,
+  value,
+  label,
+  color,
 }: {
-  label: string;
-  date: string | null;
   icon: React.ReactNode;
+  value: string | number;
+  label: string;
+  color: "blue" | "amber" | "green" | "slate";
 }) {
-  const days = daysUntil(date);
-  const color =
-    days === null
-      ? "gray"
-      : days < 0
-      ? "red"
-      : days <= 14
-      ? "yellow"
-      : "green";
+  const bg = {
+    blue: "from-blue-500 to-blue-700",
+    amber: "from-amber-500 to-orange-500",
+    green: "from-emerald-500 to-emerald-700",
+    slate: "from-slate-500 to-slate-700",
+  }[color];
 
   return (
-    <div className="flex items-center justify-between text-sm">
-      <div className="flex items-center gap-2 text-muted-foreground">
-        {icon}
-        <span>{label}</span>
-      </div>
-      <div className="text-right">
-        <span className="font-medium">{formatDate(date)}</span>
-        {days !== null && (
-          <span
-            className={`ml-2 text-xs font-medium ${
-              color === "red"
-                ? "text-red-600"
-                : color === "yellow"
-                ? "text-yellow-600"
-                : "text-green-600"
-            }`}
-          >
-            {days < 0
-              ? `(${Math.abs(days)}d overdue)`
-              : `(${days}d left)`}
-          </span>
-        )}
-      </div>
+    <div
+      className={`rounded-xl bg-gradient-to-br ${bg} p-3 text-white shadow-md`}
+    >
+      <div className="mb-1 opacity-80">{icon}</div>
+      <p className="text-xl font-bold leading-none">{value}</p>
+      <p className="mt-1 text-[10px] font-medium uppercase tracking-wide opacity-80">
+        {label}
+      </p>
     </div>
   );
 }

@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { lookupVehicle } from "@/lib/dvsa";
-import { Navbar } from "@/components/navbar";
+import { AppShell } from "@/components/app-shell";
 import { VehicleLookupResult } from "@/components/vehicle-lookup-result";
+import { UkPlateDisplay } from "@/components/uk-plate-display";
 import { isValidReg } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Car, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { ManualVehicleEntry } from "@/components/manual-vehicle-entry";
 
 interface LookupPageProps {
@@ -23,10 +24,8 @@ export default async function LookupPage({ params }: LookupPageProps) {
 
   if (!isValidReg(reg)) {
     return (
-      <div className="min-h-screen flex flex-col">
-        <Navbar />
-        <main className="flex-1 container py-12">
-          <div className="mx-auto max-w-2xl text-center">
+      <AppShell>
+        <div className="mx-auto max-w-2xl text-center py-8">
             <h1 className="text-2xl font-bold">Invalid Registration</h1>
             <p className="mt-4 text-muted-foreground">
               <strong>{reg}</strong> does not appear to be a valid UK registration number.
@@ -37,9 +36,8 @@ export default async function LookupPage({ params }: LookupPageProps) {
                 Try Another
               </Button>
             </Link>
-          </div>
-        </main>
-      </div>
+        </div>
+      </AppShell>
     );
   }
 
@@ -50,52 +48,44 @@ export default async function LookupPage({ params }: LookupPageProps) {
     console.error(`[LOOKUP] Failed for ${reg}:`, error);
     // Return a graceful error page
     return (
-      <div className="min-h-screen flex flex-col">
-        <Navbar />
-        <main className="flex-1 container py-12">
-          <div className="mx-auto max-w-2xl text-center space-y-6">
-            <div className="flex justify-center">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-                <Car className="h-8 w-8 text-muted-foreground" />
-              </div>
-            </div>
-            <h1 className="text-2xl font-bold">No MOT History Available</h1>
-            <p className="text-muted-foreground">
-              We couldn&apos;t find MOT history for <strong className="text-foreground">{reg}</strong>.
+      <AppShell>
+        <div className="mx-auto max-w-2xl space-y-6 py-4">
+          <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-slate-600 to-slate-800 p-6 text-center text-white shadow-xl">
+            <UkPlateDisplay registration={reg} size="lg" className="mx-auto" />
+            <h1 className="mt-4 text-xl font-bold">No MOT History Available</h1>
+            <p className="mt-2 text-sm text-white/80">
+              We couldn&apos;t find DVSA records for this registration.
             </p>
-            <div className="rounded-lg border bg-muted/50 p-6 text-left max-w-lg mx-auto">
-              <p className="font-medium mb-2">This usually means one of the following:</p>
-              <ul className="list-inside list-disc text-muted-foreground space-y-1">
-                <li>The vehicle is <strong>under 3 years old</strong> and has not had its first MOT yet</li>
-                <li>The registration number is <strong>incorrect</strong></li>
-                <li>The vehicle was <strong>recently imported</strong> and MOT records have not been added</li>
-                <li>There was a temporary issue with the <strong>DVSA API</strong></li>
-              </ul>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Note: Some vehicles with valid MOTs may not appear in the DVSA MOT History API due to data gaps.
-              We use the official DVSA database, which can differ from the GOV.UK vehicle enquiry service.
-            </p>
+          </div>
+
+          <div className="rounded-2xl border bg-card p-5 text-left shadow-sm">
+            <p className="mb-2 font-semibold">This usually means:</p>
+            <ul className="list-inside list-disc space-y-1 text-sm text-muted-foreground">
+              <li>Vehicle is <strong>under 3 years old</strong> — no MOT yet</li>
+              <li>Registration number is <strong>incorrect</strong></li>
+              <li>Recently <strong>imported</strong> — records not added yet</li>
+              <li>Temporary <strong>DVSA API</strong> issue</li>
+            </ul>
+          </div>
+
+          <div className="flex justify-center gap-3">
             <Link href="/">
-              <Button>
+              <Button variant="outline">
                 <Search className="mr-2 h-4 w-4" />
-                Look Up Another Vehicle
+                Try Another
               </Button>
             </Link>
-
-            <ManualVehicleEntry registration={reg} />
           </div>
-        </main>
-      </div>
+
+          <ManualVehicleEntry registration={reg} />
+        </div>
+      </AppShell>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Navbar />
-      <main className="flex-1 container py-8">
-        <VehicleLookupResult data={result} />
-      </main>
-    </div>
+    <AppShell>
+      <VehicleLookupResult data={result} />
+    </AppShell>
   );
 }

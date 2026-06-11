@@ -75,6 +75,46 @@
   background: hsl(var(--muted-foreground) / 0.5);
 }
 
+/* UK number plate styling */
+:root {
+  --font-plate: "Arial Black", "Helvetica Neue", Arial, sans-serif;
+  --plate-yellow: #f8d038;
+  --plate-band: #007a3d;
+}
+
+.uk-plate-wrap {
+  border: 3px solid #1a1a1a;
+  background: var(--plate-yellow);
+}
+
+.uk-plate-band {
+  background: linear-gradient(180deg, #00875a 0%, #007a3d 50%, #006633 100%);
+  border-right: 2px solid #1a1a1a;
+}
+
+.uk-plate-body {
+  background: var(--plate-yellow);
+  flex: 1;
+}
+
+.uk-plate {
+  background: var(--plate-yellow);
+  color: #0b0c0c;
+  border: 2px solid #0b0c0c;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+}
+
+/* Page backgrounds */
+.scroll-mt-section {
+  scroll-margin-top: 6rem;
+}
+
+.garage-page-bg {
+  background:
+    radial-gradient(ellipse at top right, rgba(29, 112, 184, 0.08), transparent 50%),
+    radial-gradient(ellipse at bottom left, rgba(0, 112, 60, 0.06), transparent 50%);
+}
+
 /* Shimmer loading animation */
 .shimmer {
   background: linear-gradient(

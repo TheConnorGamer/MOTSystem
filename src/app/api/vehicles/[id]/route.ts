@@ -1,20 +1,66 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { parseReminderDays, syncVehicleReminders } from "@/lib/reminder-schedule";
 import { z } from "zod";
 
 const updateSchema = z.object({
+  nickname: z.string().optional().nullable(),
+  photoUrl: z.string().optional().nullable(),
   taxDueDate: z.string().datetime().optional().nullable(),
   taxStatus: z.enum(["TAXED", "SORN", "UNTAXED", "UNKNOWN"]).optional().nullable(),
   motDueDate: z.string().datetime().optional().nullable(),
+  motStatus: z.string().optional().nullable(),
   nextServiceDate: z.string().datetime().optional().nullable(),
   lastServiceDate: z.string().datetime().optional().nullable(),
   serviceIntervalMiles: z.number().optional().nullable(),
   serviceIntervalMonths: z.number().optional().nullable(),
   insuranceDueDate: z.string().datetime().optional().nullable(),
+  insuranceProvider: z.string().optional().nullable(),
+  insurancePolicyNotes: z.string().optional().nullable(),
+  warrantyExpiryDate: z.string().datetime().optional().nullable(),
+  warrantyNotes: z.string().optional().nullable(),
+  breakdownExpiryDate: z.string().datetime().optional().nullable(),
+  breakdownProvider: z.string().optional().nullable(),
+  tyreChangeDate: z.string().datetime().optional().nullable(),
+  tyreNotes: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
   mileage: z.number().optional().nullable(),
 });
+
+function parseDateField(val: string | null | undefined) {
+  if (val === undefined) return undefined;
+  return val ? new Date(val) : null;
+}
+
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+
+  const vehicle = await prisma.vehicle.findFirst({
+    where: { id: params.id, userId: session.user.id },
+    include: {
+      documents: { orderBy: { createdAt: "desc" } },
+      serviceHistory: { orderBy: { serviceDate: "desc" } },
+      tyreRecords: { orderBy: { changedDate: "desc" } },
+      reminders: {
+        where: { status: "PENDING" },
+        orderBy: { dueDate: "asc" },
+      },
+    },
+  });
+
+  if (!vehicle) {
+    return NextResponse.json({ message: "Vehicle not found" }, { status: 404 });
+  }
+
+  return NextResponse.json(vehicle);
+}
 
 export async function PATCH(
   req: NextRequest,
@@ -31,10 +77,7 @@ export async function PATCH(
     });
 
     if (!vehicle) {
-      return NextResponse.json(
-        { message: "Vehicle not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ message: "Vehicle not found" }, { status: 404 });
     }
 
     const body = await req.json();
@@ -48,82 +91,45 @@ export async function PATCH(
     }
 
     const data = parsed.data;
+    const dateFields = [
+      "taxDueDate",
+      "motDueDate",
+      "nextServiceDate",
+      "lastServiceDate",
+      "insuranceDueDate",
+      "warrantyExpiryDate",
+      "breakdownExpiryDate",
+      "tyreChangeDate",
+    ] as const;
 
-    // Build update object dynamically
     const updateData: Record<string, unknown> = {};
-    if (data.taxDueDate !== undefined) updateData.taxDueDate = data.taxDueDate ? new Date(data.taxDueDate) : null;
-    if (data.taxStatus !== undefined) updateData.taxStatus = data.taxStatus;
-    if (data.motDueDate !== undefined) updateData.motDueDate = data.motDueDate ? new Date(data.motDueDate) : null;
-    if (data.nextServiceDate !== undefined) updateData.nextServiceDate = data.nextServiceDate ? new Date(data.nextServiceDate) : null;
-    if (data.lastServiceDate !== undefined) updateData.lastServiceDate = data.lastServiceDate ? new Date(data.lastServiceDate) : null;
-    if (data.serviceIntervalMiles !== undefined) updateData.serviceIntervalMiles = data.serviceIntervalMiles;
-    if (data.serviceIntervalMonths !== undefined) updateData.serviceIntervalMonths = data.serviceIntervalMonths;
-    if (data.insuranceDueDate !== undefined) updateData.insuranceDueDate = data.insuranceDueDate ? new Date(data.insuranceDueDate) : null;
-    if (data.notes !== undefined) updateData.notes = data.notes;
-    if (data.mileage !== undefined) updateData.mileage = data.mileage;
+    for (const [key, val] of Object.entries(data)) {
+      if (val === undefined) continue;
+      if ((dateFields as readonly string[]).includes(key)) {
+        updateData[key] = parseDateField(val as string | null);
+      } else {
+        updateData[key] = val;
+      }
+    }
 
     const updated = await prisma.vehicle.update({
       where: { id: params.id },
       data: updateData,
     });
 
-    // Re-create reminders if dates changed
-    if (data.motDueDate || data.taxDueDate || data.nextServiceDate) {
-      // Delete future pending reminders for this vehicle
-      await prisma.reminder.deleteMany({
-        where: {
-          vehicleId: params.id,
-          status: "PENDING",
-          sentAt: null,
-        },
+    const dateChanged = dateFields.some((f) => data[f] !== undefined);
+    if (dateChanged) {
+      const user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { reminderDaysJson: true },
       });
-
-      const reminderDays = [30, 14, 7];
-      if (updated.motDueDate) {
-        for (const days of reminderDays) {
-          const due = new Date(updated.motDueDate);
-          due.setDate(due.getDate() - days);
-          await prisma.reminder.create({
-            data: {
-              userId: session.user.id,
-              vehicleId: updated.id,
-              type: "MOT",
-              dueDate: due,
-              daysBefore: days,
-            },
-          });
-        }
-      }
-      if (updated.taxDueDate) {
-        for (const days of reminderDays) {
-          const due = new Date(updated.taxDueDate);
-          due.setDate(due.getDate() - days);
-          await prisma.reminder.create({
-            data: {
-              userId: session.user.id,
-              vehicleId: updated.id,
-              type: "TAX",
-              dueDate: due,
-              daysBefore: days,
-            },
-          });
-        }
-      }
-      if (updated.nextServiceDate) {
-        for (const days of reminderDays) {
-          const due = new Date(updated.nextServiceDate);
-          due.setDate(due.getDate() - days);
-          await prisma.reminder.create({
-            data: {
-              userId: session.user.id,
-              vehicleId: updated.id,
-              type: "SERVICE",
-              dueDate: due,
-              daysBefore: days,
-            },
-          });
-        }
-      }
+      const reminderDays = parseReminderDays(user?.reminderDaysJson);
+      await syncVehicleReminders(
+        session.user.id,
+        updated.id,
+        updated,
+        reminderDays
+      );
     }
 
     return NextResponse.json(updated);
@@ -137,7 +143,7 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   const session = await auth();
@@ -146,22 +152,15 @@ export async function DELETE(
   }
 
   try {
-    // Verify ownership
     const vehicle = await prisma.vehicle.findFirst({
       where: { id: params.id, userId: session.user.id },
     });
 
     if (!vehicle) {
-      return NextResponse.json(
-        { message: "Vehicle not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ message: "Vehicle not found" }, { status: 404 });
     }
 
-    await prisma.vehicle.delete({
-      where: { id: params.id },
-    });
-
+    await prisma.vehicle.delete({ where: { id: params.id } });
     return NextResponse.json({ message: "Vehicle deleted" });
   } catch (error) {
     console.error("[VEHICLES DELETE] Error:", error);

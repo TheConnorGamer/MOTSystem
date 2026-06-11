@@ -11,15 +11,20 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Car } from "lucide-react";
 
 interface ManualVehicleEntryProps {
-  registration: string;
+  registration?: string;
+  embedded?: boolean;
 }
 
-export function ManualVehicleEntry({ registration }: ManualVehicleEntryProps) {
+export function ManualVehicleEntry({
+  registration: initialReg = "",
+  embedded,
+}: ManualVehicleEntryProps) {
   const { data: session } = useSession();
   const router = useRouter();
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
+    registration: initialReg,
     make: "",
     model: "",
     colour: "",
@@ -35,8 +40,11 @@ export function ManualVehicleEntry({ registration }: ManualVehicleEntryProps) {
       return;
     }
 
-    if (!form.make || !form.model) {
-      toast({ title: "Make and model are required", variant: "destructive" });
+    if (!form.registration || !form.make || !form.model) {
+      toast({
+        title: "Registration, make and model are required",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -46,7 +54,7 @@ export function ManualVehicleEntry({ registration }: ManualVehicleEntryProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          registration,
+          registration: form.registration,
           make: form.make,
           model: form.model,
           colour: form.colour || undefined,
@@ -73,28 +81,36 @@ export function ManualVehicleEntry({ registration }: ManualVehicleEntryProps) {
     }
   }
 
-  return (
-    <Card className="max-w-lg mx-auto mt-6">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <Car className="h-5 w-5" />
-          Add Vehicle Manually
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <p className="text-sm text-muted-foreground">
-          The DVSA API did not return data for this vehicle. You can add it manually and set reminder dates.
-          Find MOT and tax dates on{" "}
-          <a
-            href={`https://www.gov.uk/check-vehicle-tax`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-600 underline"
-          >
-            GOV.UK
-          </a>
-          .
-        </p>
+  const formBody = (
+    <div className="space-y-4">
+        {!embedded && (
+          <p className="text-sm text-muted-foreground">
+            The DVSA API did not return data for this vehicle. You can add it manually and set reminder dates.
+            Find MOT and tax dates on{" "}
+            <a
+              href="https://www.gov.uk/check-vehicle-tax"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 underline"
+            >
+              GOV.UK
+            </a>
+            .
+          </p>
+        )}
+
+        <div className="space-y-1">
+          <Label htmlFor="registration">Registration *</Label>
+          <Input
+            id="registration"
+            placeholder="AB12 CDE"
+            value={form.registration}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, registration: e.target.value.toUpperCase() }))
+            }
+            className="uppercase"
+          />
+        </div>
 
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1">
@@ -182,7 +198,20 @@ export function ManualVehicleEntry({ registration }: ManualVehicleEntryProps) {
           {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
           Save to My Garage
         </Button>
-      </CardContent>
+    </div>
+  );
+
+  if (embedded) return formBody;
+
+  return (
+    <Card className="mx-auto mt-6 max-w-lg">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <Car className="h-5 w-5" />
+          Add Vehicle Manually
+        </CardTitle>
+      </CardHeader>
+      <CardContent>{formBody}</CardContent>
     </Card>
   );
 }

@@ -50,11 +50,12 @@ const vars: Record<string, string> = {
   DVSA_TOKEN_URL: local.DVSA_TOKEN_URL || "",
   DVSA_API_BASE: local.DVSA_API_BASE || "https://history.mot.api.gov.uk",
 
-  // --- Optional fallbacks ---
+  // --- Optional paid fallbacks (off by default) ---
+  PAID_LOOKUPS_ENABLED: local.PAID_LOOKUPS_ENABLED || "false",
   DVLA_API_KEY: local.DVLA_API_KEY || "",
   DVLA_VES_ENABLED: local.DVLA_VES_ENABLED || "false",
   RAPIDAPI_KEY: local.RAPIDAPI_KEY || "",
-  RAPIDAPI_ENABLED: "true",
+  RAPIDAPI_ENABLED: local.RAPIDAPI_ENABLED || "false",
   REGCHECK_ENABLED: "false",
   REGCHECK_USERNAME: local.REGCHECK_USERNAME || "",
 

@@ -64,8 +64,24 @@ export function formatCurrency(value: number): string {
 }
 
 export function sanitiseReg(registration: string): string {
-  // Remove spaces and uppercase for API calls
   return registration.replace(/\s/g, "").toUpperCase();
+}
+
+/** Display UK plate with standard spacing where possible */
+export function formatUkPlate(registration: string): string {
+  const clean = sanitiseReg(registration);
+  if (/^[A-Z]{2}\d{2}[A-Z]{3}$/.test(clean)) {
+    return `${clean.slice(0, 4)} ${clean.slice(4)}`;
+  }
+  if (/^[A-Z]\d{1,3}[A-Z]{3}$/.test(clean)) {
+    const match = clean.match(/^([A-Z])(\d{1,3})([A-Z]{3})$/);
+    if (match) return `${match[1]}${match[2]} ${match[3]}`;
+  }
+  if (/^[A-Z]{3}\d{1,3}[A-Z]$/.test(clean)) {
+    const match = clean.match(/^([A-Z]{3})(\d{1,3})([A-Z])$/);
+    if (match) return `${match[1]} ${match[2]}${match[3]}`;
+  }
+  return clean;
 }
 
 export function isValidReg(registration: string): boolean {

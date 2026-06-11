@@ -139,6 +139,31 @@ export function calculateNextService(
   };
 }
 
+/** Estimate next service from last MOT (free — no paid APIs). */
+export function calculateNextServiceFromMot(
+  lastMotDate: Date | null | undefined,
+  lastMotMileage: number | null | undefined,
+  make?: string | null
+): {
+  nextServiceDate: Date;
+  serviceIntervalMiles: number;
+  serviceIntervalMonths: number;
+  mileage?: number;
+} | null {
+  if (!lastMotDate) return null;
+
+  const interval = getManufacturerInterval(make);
+  const nextServiceDate = new Date(lastMotDate);
+  nextServiceDate.setMonth(nextServiceDate.getMonth() + interval.months);
+
+  return {
+    nextServiceDate,
+    serviceIntervalMiles: interval.miles,
+    serviceIntervalMonths: interval.months,
+    mileage: lastMotMileage ?? undefined,
+  };
+}
+
 export function getAdvisoryServiceItems(advisories: string[]): string[] {
   const items: string[] = [];
   const advisoryText = advisories.join(" ").toLowerCase();

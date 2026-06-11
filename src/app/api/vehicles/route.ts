@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { parseReminderDays, syncVehicleReminders } from "@/lib/reminder-schedule";
+import {
+  fieldsFromLookupResult,
+  refreshFromDvsa,
+} from "@/lib/vehicle-enrich";
 import { z } from "zod";
 
 const createSchema = z.object({
   registration: z.string().min(1),
+  nickname: z.string().optional(),
   make: z.string().optional(),
   model: z.string().optional(),
   colour: z.string().optional(),
@@ -15,9 +21,10 @@ const createSchema = z.object({
   motStatus: z.enum(["VALID", "EXPIRED", "NO_TESTS"]).optional(),
   taxStatus: z.enum(["TAXED", "SORN", "UNTAXED", "UNKNOWN"]).optional(),
   motHistoryJson: z.any().optional(),
+  photoUrl: z.string().optional(),
 });
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
@@ -49,13 +56,13 @@ export async function POST(req: NextRequest) {
     }
 
     const data = parsed.data;
+    const reg = data.registration.replace(/\s/g, "").toUpperCase();
 
-    // Check for duplicate
     const existing = await prisma.vehicle.findUnique({
       where: {
         userId_registration: {
           userId: session.user.id,
-          registration: data.registration.replace(/\s/g, "").toUpperCase(),
+          registration: reg,
         },
       },
     });
@@ -67,10 +74,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const vehicle = await prisma.vehicle.create({
-      data: {
-        userId: session.user.id,
-        registration: data.registration.replace(/\s/g, "").toUpperCase(),
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { reminderDaysJson: true },
+    });
+
+    // Auto-fetch latest DVSA data on save (free)
+    let enrichFields: Record<string, unknown> = {};
+    try {
+      const fresh = await refreshFromDvsa(reg);
+      enrichFields = fieldsFromLookupResult(fresh, {
+        taxDueDate: data.taxDueDate ? new Date(data.taxDueDate) : null,
+        taxStatus: data.taxStatus ?? null,
+      });
+    } catch {
+      enrichFields = {
         make: data.make,
         model: data.model,
         colour: data.colour,
@@ -80,44 +98,25 @@ export async function POST(req: NextRequest) {
         taxDueDate: data.taxDueDate ? new Date(data.taxDueDate) : undefined,
         motStatus: data.motStatus,
         taxStatus: data.taxStatus,
-        motHistoryJson: data.motHistoryJson ? JSON.stringify(data.motHistoryJson) : undefined,
+        motHistoryJson: data.motHistoryJson
+          ? JSON.stringify(data.motHistoryJson)
+          : undefined,
+      };
+    }
+
+    const vehicle = await prisma.vehicle.create({
+      data: {
+        userId: session.user.id,
+        registration: reg,
+        nickname: data.nickname,
+        photoUrl: data.photoUrl,
         cachedAt: new Date(),
+        ...enrichFields,
       },
     });
 
-    // Create default reminders
-    const reminderDays = [30, 14, 7];
-    if (vehicle.motDueDate) {
-      for (const days of reminderDays) {
-        const due = new Date(vehicle.motDueDate);
-        due.setDate(due.getDate() - days);
-        await prisma.reminder.create({
-          data: {
-            userId: session.user.id,
-            vehicleId: vehicle.id,
-            type: "MOT",
-            dueDate: due,
-            daysBefore: days,
-          },
-        });
-      }
-    }
-
-    if (vehicle.taxDueDate) {
-      for (const days of reminderDays) {
-        const due = new Date(vehicle.taxDueDate);
-        due.setDate(due.getDate() - days);
-        await prisma.reminder.create({
-          data: {
-            userId: session.user.id,
-            vehicleId: vehicle.id,
-            type: "TAX",
-            dueDate: due,
-            daysBefore: days,
-          },
-        });
-      }
-    }
+    const reminderDays = parseReminderDays(user?.reminderDaysJson);
+    await syncVehicleReminders(session.user.id, vehicle.id, vehicle, reminderDays);
 
     return NextResponse.json(vehicle, { status: 201 });
   } catch (error) {

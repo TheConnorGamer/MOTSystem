@@ -38,9 +38,26 @@ export async function processDueReminders(
     let method = "none";
 
     let actualDueDate: Date | null = null;
-    if (reminder.type === "MOT") actualDueDate = vehicle.motDueDate;
-    else if (reminder.type === "TAX") actualDueDate = vehicle.taxDueDate;
-    else if (reminder.type === "SERVICE") actualDueDate = vehicle.nextServiceDate;
+    switch (reminder.type) {
+      case "MOT":
+        actualDueDate = vehicle.motDueDate;
+        break;
+      case "TAX":
+        actualDueDate = vehicle.taxDueDate;
+        break;
+      case "SERVICE":
+        actualDueDate = vehicle.nextServiceDate;
+        break;
+      case "INSURANCE":
+        actualDueDate = vehicle.insuranceDueDate;
+        break;
+      case "WARRANTY":
+        actualDueDate = vehicle.warrantyExpiryDate;
+        break;
+      case "BREAKDOWN":
+        actualDueDate = vehicle.breakdownExpiryDate;
+        break;
+    }
 
     const daysRemaining = actualDueDate
       ? Math.ceil((actualDueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
@@ -50,7 +67,7 @@ export async function processDueReminders(
       try {
         await sendReminderEmail(
           user.email,
-          reminder.type as "MOT" | "TAX" | "SERVICE",
+          reminder.type as "MOT" | "TAX" | "SERVICE" | "INSURANCE" | "WARRANTY" | "BREAKDOWN",
           vehicle.registration,
           vehicle.make || "",
           vehicle.model || "",

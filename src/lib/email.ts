@@ -88,9 +88,17 @@ export async function sendEmail(options: EmailOptions): Promise<void> {
   }
 }
 
+export type ReminderEmailType =
+  | "MOT"
+  | "TAX"
+  | "SERVICE"
+  | "INSURANCE"
+  | "WARRANTY"
+  | "BREAKDOWN";
+
 export async function sendReminderEmail(
   to: string,
-  type: "MOT" | "TAX" | "SERVICE",
+  type: ReminderEmailType,
   vehicleReg: string,
   vehicleMake: string,
   vehicleModel: string,
@@ -101,16 +109,22 @@ export async function sendReminderEmail(
   const urgencyLabel = isUrgent ? "URGENT" : "REMINDER";
   const subject = `${urgencyLabel}: Your ${type} for ${vehicleReg} is due in ${daysRemaining} day${daysRemaining !== 1 ? "s" : ""}`;
 
-  const typeLabels: Record<string, string> = {
+  const typeLabels: Record<ReminderEmailType, string> = {
     MOT: "MOT Test",
     TAX: "Vehicle Tax (VED)",
     SERVICE: "Service",
+    INSURANCE: "Insurance Renewal",
+    WARRANTY: "Warranty Expiry",
+    BREAKDOWN: "Breakdown Cover",
   };
 
-  const typeDescriptions: Record<string, string> = {
+  const typeDescriptions: Record<ReminderEmailType, string> = {
     MOT: "Your MOT test is a legal requirement for vehicles over 3 years old. Driving without a valid MOT can result in a fine of up to £1,000.",
     TAX: "Vehicle Excise Duty (VED) must be kept up to date. Driving without tax can result in an £80 fine plus the cost of backdated tax.",
     SERVICE: "Regular servicing helps maintain your vehicle's reliability, safety, and resale value.",
+    INSURANCE: "Keep your insurance policy up to date. Driving without valid insurance is illegal and can result in serious penalties.",
+    WARRANTY: "Your manufacturer or extended warranty may be expiring soon. Check what's still covered before it lapses.",
+    BREAKDOWN: "Your breakdown cover renewal is coming up. Don't get caught without roadside assistance.",
   };
 
   const content = `

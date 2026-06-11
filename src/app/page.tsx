@@ -9,22 +9,23 @@ export default function HomePage() {
 
       <main className="flex-1">
         {/* Hero */}
-        <section className="relative overflow-hidden border-b bg-gradient-to-b from-gov-blue/5 to-background pb-16 pt-12 md:pt-20">
+        <section className="garage-page-bg relative overflow-hidden border-b pb-16 pt-10 md:pt-16">
           <div className="container relative z-10">
             <div className="mx-auto max-w-3xl text-center">
-              <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl md:text-6xl">
+              <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
                 Never miss an{" "}
-                <span className="text-gov-blue">MOT</span> or{" "}
-                <span className="text-gov-green">Tax</span> deadline again
+                <span className="bg-gradient-to-r from-[#1d70b8] to-[#00703c] bg-clip-text text-transparent">
+                  MOT
+                </span>{" "}
+                or{" "}
+                <span className="text-[#00703c]">Tax</span> deadline again
               </h1>
-              <p className="mt-6 text-lg text-muted-foreground">
-                Instantly check your vehicle&rsquo;s MOT history, tax status, and
-                service reminders. Save unlimited vehicles and get email alerts
-                before anything is due.
+              <p className="mt-4 text-lg text-muted-foreground">
+                Free DVSA checks · Personal garage · Email &amp; SMS reminders
               </p>
             </div>
 
-            <div className="mx-auto mt-10 max-w-xl">
+            <div className="mx-auto mt-8 max-w-lg">
               <VehicleLookupForm />
             </div>
           </div>
@@ -39,24 +40,28 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             <FeatureCard
-              icon={<Shield className="h-6 w-6 text-gov-blue" />}
+              gradient="from-blue-500 to-blue-700"
+              icon={<Shield className="h-6 w-6" />}
               title="MOT History"
               description="Full DVSA MOT test history including pass/fail status, advisories, and mileage records."
             />
             <FeatureCard
-              icon={<Bell className="h-6 w-6 text-gov-green" />}
+              gradient="from-emerald-500 to-emerald-700"
+              icon={<Bell className="h-6 w-6" />}
               title="Smart Reminders"
               description="Email alerts 30, 14, and 7 days before MOT, tax, and service due dates."
             />
             <FeatureCard
-              icon={<FileText className="h-6 w-6 text-gov-blue" />}
+              gradient="from-violet-500 to-violet-700"
+              icon={<FileText className="h-6 w-6" />}
               title="PDF Reports"
               description="Download detailed vehicle reports with full history and status summary."
             />
             <FeatureCard
-              icon={<Gauge className="h-6 w-6 text-gov-green" />}
+              gradient="from-amber-500 to-orange-500"
+              icon={<Gauge className="h-6 w-6" />}
               title="Service Estimates"
               description="Intelligent service date predictions based on manufacturer intervals."
             />
@@ -98,14 +103,18 @@ function FeatureCard({
   icon,
   title,
   description,
+  gradient,
 }: {
   icon: React.ReactNode;
   title: string;
   description: string;
+  gradient: string;
 }) {
   return (
-    <div className="rounded-xl border bg-card p-6 shadow-sm transition-colors hover:bg-accent/50">
-      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+    <div className="rounded-2xl border bg-card p-6 shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg">
+      <div
+        className={`mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow ${gradient}`}
+      >
         {icon}
       </div>
       <h3 className="text-lg font-semibold">{title}</h3>

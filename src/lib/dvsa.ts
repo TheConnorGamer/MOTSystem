@@ -338,38 +338,43 @@ export async function lookupVehicle(
   } catch (error: any) {
     console.log(`[LOOKUP] DVSA failed for ${registration}: ${error.message}`);
 
-    // Try DVLA VES fallback for vehicles not in DVSA database
-    const dvlaResult = await lookupVehicleDvla(registration);
-    if (dvlaResult) {
-      console.log(`[LOOKUP] DVSA missed ${registration}, using DVLA fallback`);
-      return dvlaResult;
+    // DVLA VES costs ~£0.02/lookup — only when paid lookups explicitly enabled
+    if (process.env.PAID_LOOKUPS_ENABLED === "true") {
+      const dvlaResult = await lookupVehicleDvla(registration);
+      if (dvlaResult) {
+        console.log(`[LOOKUP] DVSA missed ${registration}, using DVLA fallback`);
+        return dvlaResult;
+      }
     }
 
-    // RegCheck is a direct paid API and usually more reliable than RapidAPI free tiers
-    console.log(`[LOOKUP] Trying RegCheck fallback for ${registration}`);
-    const regcheckResult = await lookupVehicleRegCheck(registration);
-    if (regcheckResult) {
-      console.log(`[LOOKUP] Using RegCheck fallback for ${registration}`);
-      return regcheckResult;
+    const paidLookupsEnabled = process.env.PAID_LOOKUPS_ENABLED === "true";
+
+    if (paidLookupsEnabled) {
+      console.log(`[LOOKUP] Trying RegCheck fallback for ${registration}`);
+      const regcheckResult = await lookupVehicleRegCheck(registration);
+      if (regcheckResult) {
+        console.log(`[LOOKUP] Using RegCheck fallback for ${registration}`);
+        return regcheckResult;
+      }
+
+      console.log(`[LOOKUP] Trying RapidAPI fallback for ${registration}`);
+      const rapidResult = await lookupVehicleRapidApi(registration);
+      if (rapidResult) {
+        console.log(`[LOOKUP] Using RapidAPI fallback for ${registration}`);
+        return rapidResult;
+      }
+
+      console.log(`[LOOKUP] Trying Autoways fallback for ${registration}`);
+      const autowaysResult = await lookupVehicleAutoways(registration);
+      if (autowaysResult) {
+        console.log(`[LOOKUP] Using Autoways fallback for ${registration}`);
+        return autowaysResult;
+      }
+    } else {
+      console.log(`[LOOKUP] Paid fallbacks disabled for ${registration}`);
     }
 
-    // RapidAPI providers require an active subscription on the specific API
-    console.log(`[LOOKUP] Trying RapidAPI fallback for ${registration}`);
-    const rapidResult = await lookupVehicleRapidApi(registration);
-    if (rapidResult) {
-      console.log(`[LOOKUP] Using RapidAPI fallback for ${registration}`);
-      return rapidResult;
-    }
-
-    // Autoways is another RapidAPI provider (vehicle identity only)
-    console.log(`[LOOKUP] Trying Autoways fallback for ${registration}`);
-    const autowaysResult = await lookupVehicleAutoways(registration);
-    if (autowaysResult) {
-      console.log(`[LOOKUP] Using Autoways fallback for ${registration}`);
-      return autowaysResult;
-    }
-
-    console.log(`[LOOKUP] All fallbacks failed for ${registration}`);
+    console.log(`[LOOKUP] All free lookups failed for ${registration}`);
     throw error;
   }
 }

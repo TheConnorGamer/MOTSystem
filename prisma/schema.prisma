@@ -54,6 +54,7 @@ model User {
   subscriptionExpiry    DateTime?      @map("subscription_expiry")
   stripeCustomerId      String?        @map("stripe_customer_id")
   stripeSubscriptionId  String?        @map("stripe_subscription_id")
+  reminderDaysJson      String         @default("[30,14,7,1]") @map("reminder_days_json")
   createdAt             DateTime       @default(now()) @map("created_at")
   updatedAt             DateTime       @updatedAt @map("updated_at")
 
@@ -64,6 +65,7 @@ model User {
   activityLogs  ActivityLog[]
   documents     Document[]
   serviceHistory ServiceHistory[]
+  tyreRecords   TyreRecord[]
 
   @@map("users")
 }
@@ -99,6 +101,16 @@ model Vehicle {
   taxStatus       String?         @map("tax_status")
   motHistoryJson  String?         @map("mot_history_json")
   insuranceDueDate DateTime?      @map("insurance_due_date")
+  insuranceProvider String?       @map("insurance_provider")
+  insurancePolicyNotes String?   @map("insurance_policy_notes")
+  warrantyExpiryDate DateTime?   @map("warranty_expiry_date")
+  warrantyNotes   String?         @map("warranty_notes")
+  breakdownExpiryDate DateTime?  @map("breakdown_expiry_date")
+  breakdownProvider String?      @map("breakdown_provider")
+  tyreChangeDate  DateTime?      @map("tyre_change_date")
+  tyreNotes       String?         @map("tyre_notes")
+  nickname        String?
+  photoUrl        String?         @map("photo_url")
   notes           String?
   cachedAt        DateTime?       @map("cached_at")
   createdAt       DateTime        @default(now()) @map("created_at")
@@ -108,6 +120,7 @@ model Vehicle {
   reminders   Reminder[]
   documents   Document[]
   serviceHistory ServiceHistory[]
+  tyreRecords TyreRecord[]
 
   @@unique([userId, registration])
   @@index([registration])
@@ -194,4 +207,20 @@ model ServiceHistory {
   vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
 
   @@map("service_history")
+}
+
+model TyreRecord {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  vehicleId   String   @map("vehicle_id")
+  changedDate DateTime @map("changed_date")
+  treadDepth  Float?   @map("tread_depth")
+  brand       String?
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@map("tyre_records")
 }
