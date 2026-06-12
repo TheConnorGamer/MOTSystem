@@ -23,14 +23,14 @@ export function Navbar() {
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center justify-between">
-        <Link href="/" className="flex items-center">
+      <div className="container flex h-16 items-center justify-between overflow-visible">
+        <Link href="/" className="relative z-10 flex shrink-0 items-center overflow-visible">
           <Image
             src="/logo.png"
             alt="VehicleGuard UK"
-            width={240}
-            height={60}
-            className="h-12 w-auto"
+            width={1536}
+            height={1024}
+            className="h-auto w-64 shrink-0 origin-left sm:w-80 md:w-96"
             priority
           />
         </Link>
